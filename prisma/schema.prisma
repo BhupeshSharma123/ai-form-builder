@@ -1,0 +1,80 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  forms       Form[]
+  aiCredits   Int      @default(50)
+  stripeCustomerId String?
+  plan        Plan     @default(FREE)
+
+  @@map("users")
+}
+
+enum Plan {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+model Form {
+  id          String       @id @default(uuid())
+  title       String
+  description String?
+  sections    Json         @default("[]")
+  settings    Json         @default("{}")
+  status      FormStatus   @default(DRAFT)
+  isTemplate  Boolean      @default(false)
+  category    String?
+  shareUrl    String?      @unique
+  
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  responses   Response[]
+  
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  
+  @@index([userId])
+  @@index([status])
+  @@map("forms")
+}
+
+enum FormStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+}
+
+model Response {
+  id          String   @id @default(uuid())
+  data        Json     @default("{}")
+  ipAddress   String?
+  userAgent   String?
+  
+  formId      String
+  form        Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  
+  submittedAt DateTime @default(now())
+  
+  @@index([formId])
+  @@map("responses")
+}
