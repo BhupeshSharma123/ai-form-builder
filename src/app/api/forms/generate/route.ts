@@ -28,14 +28,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check AI credits from Supabase
-    const { data: userData, error: userError } = await supabase
+    // Ensure user exists in users table
+    const { data: existingUser } = await supabase
       .from("users")
-      .select("ai_credits")
+      .select("id, ai_credits")
       .eq("id", user.id)
       .single();
 
-    const aiCredits = userData?.ai_credits ?? 50;
+    if (!existingUser) {
+      // Create user record
+      await supabase.from("users").insert({
+        id: user.id,
+        email: user.email || "",
+        name: user.user_metadata?.name || user.email?.split("@")[0] || "User",
+        avatar: user.user_metadata?.avatar_url || null,
+        ai_credits: 50,
+        plan: "FREE",
+      });
+    }
+
+    const aiCredits = existingUser?.ai_credits ?? 50;
 
     if (aiCredits <= 0) {
       return NextResponse.json(
