@@ -2,85 +2,26 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence, Reorder } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
-  Save,
-  Eye,
-  EyeOff,
-  ArrowLeft,
-  Plus,
-  GripVertical,
-  Trash2,
-  Smartphone,
-  Monitor,
-  Tablet,
-  Copy,
-  Undo,
-  Redo,
-  Share2,
-  Type,
-  AlignLeft,
-  Mail,
-  Phone,
-  Hash,
-  Calendar,
-  Clock,
-  Link,
-  Lock,
-  List,
-  CheckSquare,
-  Circle,
-  ToggleLeft,
-  Star,
-  Sliders,
-  FileSignature,
-  MapPin,
-  Upload,
-  Image as ImageIcon,
-  ToggleRight,
-  Heading,
-  Minus,
-  FileText,
-  Sparkles,
-  X,
-  Check,
-  MoreHorizontal,
-  ChevronDown,
-  LayoutGrid,
-  Space,
+  Save, Eye, EyeOff, ArrowLeft, Plus, GripVertical, Trash2,
+  Smartphone, Monitor, Tablet, Undo, Redo, Share2,
+  Type, AlignLeft, Mail, Phone, Hash, Calendar, Clock, Link, Lock,
+  List, CheckSquare, Circle, ToggleLeft, Star, Sliders,
+  FileSignature, MapPin, Upload, Image as ImageIcon, ToggleRight,
+  Heading, Minus, FileText, Sparkles, X, Check, MoreHorizontal,
+  ChevronDown, LayoutGrid, Space,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFormStore } from "@/store/form-store";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
@@ -89,8 +30,7 @@ import { cn } from "@/lib/utils";
 
 const fieldTypeCategories = [
   {
-    name: "Text Inputs",
-    icon: Type,
+    name: "Text Inputs", icon: Type,
     types: [
       { type: "text" as FieldType, label: "Text", icon: Type },
       { type: "textarea" as FieldType, label: "Text Area", icon: AlignLeft },
@@ -101,8 +41,7 @@ const fieldTypeCategories = [
     ],
   },
   {
-    name: "Numbers & Dates",
-    icon: Hash,
+    name: "Numbers & Dates", icon: Hash,
     types: [
       { type: "number" as FieldType, label: "Number", icon: Hash },
       { type: "date" as FieldType, label: "Date", icon: Calendar },
@@ -111,8 +50,7 @@ const fieldTypeCategories = [
     ],
   },
   {
-    name: "Choices",
-    icon: List,
+    name: "Choices", icon: List,
     types: [
       { type: "dropdown" as FieldType, label: "Dropdown", icon: List },
       { type: "radio" as FieldType, label: "Radio", icon: Circle },
@@ -123,8 +61,7 @@ const fieldTypeCategories = [
     ],
   },
   {
-    name: "Rich Inputs",
-    icon: Star,
+    name: "Rich Inputs", icon: Star,
     types: [
       { type: "rating" as FieldType, label: "Rating", icon: Star },
       { type: "signature" as FieldType, label: "Signature", icon: FileSignature },
@@ -133,8 +70,7 @@ const fieldTypeCategories = [
     ],
   },
   {
-    name: "Layout",
-    icon: LayoutGrid,
+    name: "Layout", icon: LayoutGrid,
     types: [
       { type: "heading" as FieldType, label: "Heading", icon: Heading },
       { type: "paragraph" as FieldType, label: "Paragraph", icon: FileText },
@@ -152,7 +88,7 @@ export default function AdvancedFormBuilder() {
     form, setForm, updateFormTitle, updateFormDescription,
     addSection, updateSection, removeSection,
     addField, updateField, removeField,
-    selectedFieldId, selectField, isDirty,
+    selectedFieldId, selectField,
   } = useFormStore();
 
   const [isSaving, setIsSaving] = useState(false);
@@ -161,6 +97,8 @@ export default function AdvancedFormBuilder() {
   const [deviceView, setDeviceView] = useState<DeviceView>("desktop");
   const [showPreview, setShowPreview] = useState(true);
   const [previewFormData, setPreviewFormData] = useState<Record<string, any>>({});
+  const [draggedField, setDraggedField] = useState<string | null>(null);
+  const [dragOverField, setDragOverField] = useState<string | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -209,14 +147,76 @@ export default function AdvancedFormBuilder() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { toast.error("Please sign in"); return; }
-      const { error } = await supabase.from("forms").update({ status: "PUBLISHED" }).eq("id", form.id).eq("user_id", user.id);
-      if (error) throw error;
+      
+      // First save the form, then publish
+      const { error: saveError } = await supabase.from("forms").upsert({
+        id: form.id, title: form.title, description: form.description,
+        sections: form.sections, settings: form.settings,
+        status: "PUBLISHED", user_id: user.id,
+      });
+      if (saveError) throw saveError;
+      
       setForm({ ...form, status: "published" });
       toast.success("Published! Link copied.");
       navigator.clipboard.writeText(`${window.location.origin}/forms/${form.id}`);
     } catch (error: any) {
       toast.error(error.message || "Failed to publish");
     }
+  };
+
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent, fieldId: string) => {
+    setDraggedField(fieldId);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", fieldId);
+  };
+
+  const handleDragOver = (e: React.DragEvent, fieldId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (fieldId !== draggedField) {
+      setDragOverField(fieldId);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverField(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetFieldId: string, sectionId: string) => {
+    e.preventDefault();
+    setDragOverField(null);
+    
+    if (!draggedField || !form || draggedField === targetFieldId) return;
+    
+    const section = form.sections.find(s => s.id === sectionId);
+    if (!section) return;
+    
+    const fields = [...section.fields];
+    const draggedIndex = fields.findIndex(f => f.id === draggedField);
+    const targetIndex = fields.findIndex(f => f.id === targetFieldId);
+    
+    if (draggedIndex === -1 || targetIndex === -1) return;
+    
+    // Reorder fields
+    const [removed] = fields.splice(draggedIndex, 1);
+    fields.splice(targetIndex, 0, removed);
+    
+    // Update order
+    const updatedFields = fields.map((f, i) => ({ ...f, order: i }));
+    
+    const updatedSections = form.sections.map(s =>
+      s.id === sectionId ? { ...s, fields: updatedFields } : s
+    );
+    
+    setForm({ ...form, sections: updatedSections });
+    setDraggedField(null);
+    toast.success("Field reordered!");
+  };
+
+  const handleDragEnd = () => {
+    setDraggedField(null);
+    setDragOverField(null);
   };
 
   const getDeviceWidth = () => {
@@ -336,68 +336,80 @@ export default function AdvancedFormBuilder() {
             </div>
 
             {/* Sections */}
-            <AnimatePresence mode="popLayout">
-              {form.sections.map((section) => (
-                <motion.div key={section.id} layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-                  <div className={cn(
-                    "rounded-2xl border overflow-hidden transition-all",
-                    activeSection === section.id ? "border-violet-500/50" : "border-white/10"
-                  )}>
-                    <div className="bg-white/5 p-4 border-b border-white/10">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3 flex-1">
-                          <GripVertical className="h-5 w-5 text-white/30 cursor-grab" />
-                          <div className="flex-1">
-                            <Input
-                              value={section.title}
-                              onChange={(e) => updateSection(section.id, { title: e.target.value })}
-                              className="font-semibold bg-transparent border-none p-0 h-auto focus-visible:ring-0 text-white"
-                              placeholder="Section title"
-                            />
-                            <Input
-                              value={section.description || ""}
-                              onChange={(e) => updateSection(section.id, { description: e.target.value })}
-                              className="text-sm text-white/40 bg-transparent border-none p-0 h-auto focus-visible:ring-0 mt-1"
-                              placeholder="Add description (optional)"
-                            />
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Badge variant="outline" className="text-xs border-white/10 text-white/40">
-                            {section.fields.length} fields
-                          </Badge>
-                          {form.sections.length > 1 && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-white/40 hover:text-red-400" onClick={() => removeSection(section.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
+            {form.sections.map((section) => (
+              <div key={section.id} className={cn(
+                "rounded-2xl border overflow-hidden transition-all",
+                activeSection === section.id ? "border-violet-500/50" : "border-white/10"
+              )}>
+                <div className="bg-white/5 p-4 border-b border-white/10">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="cursor-grab">
+                        <GripVertical className="h-5 w-5 text-white/30" />
+                      </div>
+                      <div className="flex-1">
+                        <Input
+                          value={section.title}
+                          onChange={(e) => updateSection(section.id, { title: e.target.value })}
+                          className="font-semibold bg-transparent border-none p-0 h-auto focus-visible:ring-0 text-white"
+                          placeholder="Section title"
+                        />
+                        <Input
+                          value={section.description || ""}
+                          onChange={(e) => updateSection(section.id, { description: e.target.value })}
+                          className="text-sm text-white/40 bg-transparent border-none p-0 h-auto focus-visible:ring-0 mt-1"
+                          placeholder="Add description (optional)"
+                        />
                       </div>
                     </div>
-                    <div className="p-4 space-y-2">
-                      {section.fields.map((field) => (
-                        <FormFieldCard
-                          key={field.id}
-                          field={field}
-                          isSelected={selectedFieldId === field.id}
-                          onSelect={() => selectField(field.id)}
-                          onUpdate={(updates) => updateField(field.id, updates)}
-                          onRemove={() => removeField(field.id)}
-                        />
-                      ))}
-                      <Button
-                        variant="ghost"
-                        className="w-full border-2 border-dashed border-white/10 hover:border-violet-500/30 text-white/40 hover:text-white rounded-xl h-12"
-                        onClick={() => { setActiveSection(section.id); setShowFieldPicker(true); }}
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Field
-                      </Button>
+                    <div className="flex items-center gap-1">
+                      <Badge variant="outline" className="text-xs border-white/10 text-white/40">
+                        {section.fields.length} fields
+                      </Badge>
+                      {form.sections.length > 1 && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-white/40 hover:text-red-400" onClick={() => removeSection(section.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
+                </div>
+                <div className="p-4 space-y-2">
+                  {section.fields.map((field) => (
+                    <div
+                      key={field.id}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, field.id)}
+                      onDragOver={(e) => handleDragOver(e, field.id)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, field.id, section.id)}
+                      onDragEnd={handleDragEnd}
+                      className={cn(
+                        "transition-all",
+                        draggedField === field.id && "opacity-50",
+                        dragOverField === field.id && "border-t-2 border-t-violet-500"
+                      )}
+                    >
+                      <FormFieldCard
+                        field={field}
+                        isSelected={selectedFieldId === field.id}
+                        onSelect={() => selectField(field.id)}
+                        onUpdate={(updates) => updateField(field.id, updates)}
+                        onRemove={() => removeField(field.id)}
+                      />
+                    </div>
+                  ))}
+                  <Button
+                    variant="ghost"
+                    className="w-full border-2 border-dashed border-white/10 hover:border-violet-500/30 text-white/40 hover:text-white rounded-xl h-12"
+                    onClick={() => { setActiveSection(section.id); setShowFieldPicker(true); }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Field
+                  </Button>
+                </div>
+              </div>
+            ))}
 
             {/* Add Section */}
             <Button
@@ -414,7 +426,6 @@ export default function AdvancedFormBuilder() {
         {/* Right Panel - Preview */}
         {showPreview && (
           <aside className="w-[480px] border-l border-white/10 bg-white/5 overflow-hidden flex flex-col">
-            {/* Preview Header */}
             <div className="border-b border-white/10 p-3 flex items-center justify-between">
               <h3 className="font-semibold text-sm">Preview</h3>
               <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1">
@@ -438,7 +449,6 @@ export default function AdvancedFormBuilder() {
               </div>
             </div>
 
-            {/* Preview Content */}
             <div className="flex-1 overflow-y-auto p-4 bg-white/[0.02]">
               <div className={cn("mx-auto transition-all duration-300", getDeviceWidth())}>
                 <div className={cn(
@@ -490,7 +500,6 @@ export default function AdvancedFormBuilder() {
               </div>
             </div>
 
-            {/* Field Settings */}
             {selectedFieldId && (
               <div className="border-t border-white/10 h-64 overflow-y-auto">
                 <FieldSettingsPanel
@@ -582,8 +591,7 @@ function FormFieldCard({ field, isSelected, onSelect, onUpdate, onRemove }: {
   const Icon = fieldType?.icon || Type;
 
   return (
-    <motion.div
-      layout
+    <div
       className={cn(
         "group border rounded-xl bg-white/5 hover:bg-white/10 transition-all cursor-pointer",
         isSelected && "border-violet-500/50 bg-violet-500/10"
@@ -629,7 +637,7 @@ function FormFieldCard({ field, isSelected, onSelect, onUpdate, onRemove }: {
           </DropdownMenu>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 

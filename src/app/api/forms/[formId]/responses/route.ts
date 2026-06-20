@@ -32,7 +32,9 @@ export async function POST(
       );
     }
 
-    if (form.status !== "PUBLISHED") {
+    // Check if form is published (case-insensitive)
+    const formStatus = (form.status || "").toUpperCase();
+    if (formStatus !== "PUBLISHED") {
       return NextResponse.json(
         { message: "Form is not accepting responses" },
         { status: 403 }

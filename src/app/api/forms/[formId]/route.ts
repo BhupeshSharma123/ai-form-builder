@@ -22,10 +22,11 @@ export async function GET(
       );
     }
 
-    // Check if form is published
-    if (form.status !== "PUBLISHED") {
+    // Check if form is published (case-insensitive)
+    const formStatus = (form.status || "").toUpperCase();
+    if (formStatus !== "PUBLISHED") {
       return NextResponse.json(
-        { message: "Form is not available" },
+        { message: "Form is not available", status: form.status },
         { status: 403 }
       );
     }
@@ -35,9 +36,9 @@ export async function GET(
         id: form.id,
         title: form.title,
         description: form.description,
-        sections: form.sections,
-        settings: form.settings,
-        status: form.status.toLowerCase(),
+        sections: form.sections || [],
+        settings: form.settings || {},
+        status: "published",
       },
     });
   } catch (error: any) {
