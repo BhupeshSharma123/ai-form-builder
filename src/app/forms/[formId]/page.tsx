@@ -32,6 +32,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { SignaturePad } from "@/components/ui/signature-pad";
 import { toast } from "sonner";
 import { Form, FormField, FormSection } from "@/types/form";
 
@@ -422,6 +423,16 @@ export default function FormPage() {
                 handleInputChange(field.id, file.name);
               }
             }}
+          />
+        );
+
+      case "signature":
+        return fieldWrapper(
+          <SignaturePad
+            width={400}
+            height={150}
+            value={value || null}
+            onChange={(sig) => handleInputChange(field.id, sig)}
           />
         );
 

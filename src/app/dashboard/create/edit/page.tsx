@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { SignaturePad } from "@/components/ui/signature-pad";
 import { useFormStore } from "@/store/form-store";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
@@ -725,6 +726,15 @@ function renderFieldInput(field: FormField, value: any, onChange: (value: any) =
           <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
           <p className="text-sm text-gray-400">Click to upload</p>
         </div>
+      );
+    case "signature":
+      return (
+        <SignaturePad
+          width={400}
+          height={150}
+          value={value || null}
+          onChange={(sig) => onChange(sig)}
+        />
       );
     default:
       return <Input placeholder={field.placeholder} className={baseClass} />;
